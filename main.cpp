@@ -81,7 +81,6 @@ void renderTile(int y, int x, string tile)
 	{
 		attron(COLOR_PAIR(6));
 		mvaddstr(y, x, wideNum(charToInt(tile.at(0))).c_str());
-		//mvaddstr(y+1, x, "◎̣ʘ");
 		mvaddstr(y+1, x, "◎∙");
 		attroff(COLOR_PAIR(6));
 	}
@@ -115,7 +114,7 @@ void renderTile(int y, int x, string tile)
 	}
 	else if(tile.at(1) == 'g') //Green Dragon?
 	{
-		attron(COLOR_PAIR(8)|A_BOLD);
+		attron(COLOR_PAIR(8));
 		mvaddstr(y, x, "Ｇ");
 		attroff(COLOR_PAIR(8));
 		attron(COLOR_PAIR(3));
@@ -136,9 +135,9 @@ void renderTile(int y, int x, string tile)
 		attron(COLOR_PAIR(8));
 		mvaddstr(y, x, "Ｗ");
 		attroff(COLOR_PAIR(8));
-		attron(COLOR_PAIR(8));
+		attron(COLOR_PAIR(8)|A_BOLD);
 		mvaddstr(y+1, x, "白");
-		attroff(COLOR_PAIR(8));
+		attroff(COLOR_PAIR(8)|A_BOLD);
 	}
 }
 
