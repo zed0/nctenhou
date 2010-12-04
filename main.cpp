@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include "network.h"
 
 using namespace std;
 
@@ -12,11 +13,23 @@ template<class T> T fromString(const string& s);
 template<class T> string toString(const T& t);
 int charToInt(char a);
 
+static WINDOW *mainWin;
+static WINDOW *debugCont;
+static WINDOW *debugWin;
+
 int main()
 {
-	
+	string name = "ID30EA6C7C-8YS42EDV";
+	string lobby = "4567";
 	setlocale(LC_CTYPE, "");
-	initscr();
+	mainWin = initscr();
+	refresh();
+	debugCont = newwin(20, COLS, 0, 0);
+	debugWin = subwin(debugCont, 18, COLS-2, 1, 1);
+	network tenhouNet("112.78.204.226", "80");
+	//network tenhouNet("localhost", "9001");
+
+	scrollok(debugWin, true);
 	start_color();
 	init_pair(1, COLOR_BLACK, COLOR_BLACK);
 	init_pair(2, COLOR_RED, COLOR_BLACK);
@@ -26,6 +39,32 @@ int main()
 	init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
 	init_pair(7, COLOR_CYAN, COLOR_BLACK);
 	init_pair(8, COLOR_WHITE, COLOR_BLACK);
+
+	box(debugCont, ACS_VLINE, ACS_HLINE);
+	wrefresh(debugCont);
+	wrefresh(debugWin);
+	tenhouNet.sendMsg("<Z />");
+	//say hi
+	tenhouNet.sendMsg("<HELO name=\"" + name + "\" tid=\"" + lobby + "\" sx=\"C\" />");
+	//join game queues
+	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",9\" />");
+	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",7\" />");
+	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
+	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
+	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
+	//do something
+	tenhouNet.sendMsg("<GOK />");
+
+	string buffer;
+	while(true)
+	{
+		buffer = "";
+		//tenhouNet.sendMsg("<Z />");
+		tenhouNet.recieveMsg(buffer);
+		waddstr(debugWin, buffer.c_str());
+		wrefresh(debugWin);
+	}
+	/*
 	for(int i=1; i<=9; ++i)
 	{
 		renderTile(1, i*3, toString<int>(i) + "m");
@@ -39,10 +78,12 @@ int main()
 	renderTile(10, 15, "1g");
 	renderTile(10, 18, "1d");
 	renderTile(10, 21, "1i");
-	move(20, 20);
-	refresh();
-	getch();
-	endwin();
+	*/
+
+	//move(20, 20);
+	//getch();
+	//delwin(debugWin);
+	//endwin();
 	return 0;
 }
 
