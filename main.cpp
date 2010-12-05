@@ -2,10 +2,13 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <ctime>
 #include "network.h"
 
 using namespace std;
 
+void *mainThread(void *tid);
+void *pingThread(void *tid);
 string japaneseNum(int n);
 string wideNum(int n);
 void renderTile(int y, int x, string tile);
@@ -17,6 +20,9 @@ static WINDOW *mainWin;
 static WINDOW *debugCont;
 static WINDOW *debugWin;
 
+network tenhouNet("112.78.204.226", "80");
+//network tenhouNet("localhost", "9001");
+
 int main()
 {
 	string name = "ID30EA6C7C-8YS42EDV";
@@ -26,7 +32,7 @@ int main()
 	refresh();
 	debugCont = newwin(20, COLS, 0, 0);
 	debugWin = subwin(debugCont, 18, COLS-2, 1, 1);
-	network tenhouNet("112.78.204.226", "80");
+	//tenhouNet = new network("112.78.204.226", "80");
 	//network tenhouNet("localhost", "9001");
 
 	scrollok(debugWin, true);
@@ -52,18 +58,14 @@ int main()
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
-	//do something
-	tenhouNet.sendMsg("<GOK />");
 
-	string buffer;
-	while(true)
-	{
-		buffer = "";
-		//tenhouNet.sendMsg("<Z />");
-		tenhouNet.recieveMsg(buffer);
-		waddstr(debugWin, buffer.c_str());
-		wrefresh(debugWin);
-	}
+	pthread_t mainLoop;
+	pthread_t pingLoop;
+	int threadNum = 0;
+	pthread_create(&mainLoop, NULL, mainThread, (void *)threadNum);
+	threadNum++;
+	pthread_create(&pingLoop, NULL, pingThread, (void *)threadNum);
+	pthread_exit(NULL);
 	/*
 	for(int i=1; i<=9; ++i)
 	{
@@ -81,10 +83,45 @@ int main()
 	*/
 
 	//move(20, 20);
-	//getch();
-	//delwin(debugWin);
-	//endwin();
+	getch();
+	delwin(debugWin);
+	endwin();
 	return 0;
+}
+
+void *mainThread(void *tid)
+{
+	string buffer;
+	bool disconnected = false;
+	while(!disconnected)
+	{
+		buffer = "";
+		//tenhouNet.sendMsg("<Z />");
+		int status = tenhouNet.recieveMsg(buffer);
+		if(status == 0)
+		{
+			disconnected = true;
+		}
+		else if(status > 0)
+		{
+			waddstr(debugWin, (buffer + "\n").c_str());
+			wrefresh(debugWin);
+			if(buffer != "")
+			{
+				//cout << buffer << endl;
+			}
+		}
+	}
+}
+
+void *pingThread(void *tid)
+{
+	while(true)
+	{
+		tenhouNet.sendMsg("<Z />");
+		//waddstr(debugWin, (buffer + "\n").c_str());
+		sleep(14);
+	}
 }
 
 void renderTile(int y, int x, string tile)
@@ -114,6 +151,7 @@ void renderTile(int y, int x, string tile)
 		{
 			attron(COLOR_PAIR(7));
 			mvaddstr(y, x, wideNum(charToInt(tile.at(0))).c_str());
+			//mvaddstr(y+1, x, "鳥");
 			mvaddstr(y+1, x, "║ ");
 			attroff(COLOR_PAIR(7));
 		}
