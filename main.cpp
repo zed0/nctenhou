@@ -1,4 +1,5 @@
 #include <ncursesw/ncurses.h>
+#include <ncursesw/form.h>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -9,31 +10,52 @@ using namespace std;
 
 void *mainThread(void *tid);
 void *pingThread(void *tid);
+void readChat(string recieved);
+string getXMLAttr(string line, string attr);
+string ASCIIToStr(string input);
 string japaneseNum(int n);
 string wideNum(int n);
 void renderTile(int y, int x, string tile);
-template<class T> T fromString(const string& s);
+//template<class T> T fromString(const string& s);
+template<class T> T fromString(const string& s, ios_base& (*f)(ios_base&) = std::hex);
 template<class T> string toString(const T& t);
 int charToInt(char a);
 
 static WINDOW *mainWin;
 static WINDOW *debugCont;
 static WINDOW *debugWin;
+FIELD *debugField[2];
+FORM *debugForm;
 
 network tenhouNet("112.78.204.226", "80");
 //network tenhouNet("localhost", "9001");
 
 int main()
 {
+	char ch;
 	string name = "ID30EA6C7C-8YS42EDV";
 	string lobby = "4567";
 	setlocale(LC_CTYPE, "");
 	mainWin = initscr();
+	cbreak();
+	noecho();
 	refresh();
 	debugCont = newwin(20, COLS, 0, 0);
 	debugWin = subwin(debugCont, 18, COLS-2, 1, 1);
-	//tenhouNet = new network("112.78.204.226", "80");
-	//network tenhouNet("localhost", "9001");
+	//debugField[0] = new_field(1, 10, 6, 1, 0, 0);
+	//debugField[1] = NULL;
+	//set_field_back(debugField[0], A_UNDERLINE);
+	//field_opts_off(debugField[0], O_AUTOSKIP);
+	//debugForm = new_form(debugField);
+	//int rows, cols;
+	//rows = 20;
+	//cols = 40;
+	//scale_form(debugForm, &rows, &cols);
+	//debugWin = newwin(rows+4, cols+4, 4, 4);
+	keypad(debugWin, true);
+	//set_form_win(debugForm, debugCont);
+	//set_form_win(debugForm, debugWin);
+	//set_form_sub(debugForm, derwin(debugWin, rows, cols, 2, 2));
 
 	scrollok(debugWin, true);
 	start_color();
@@ -46,18 +68,28 @@ int main()
 	init_pair(7, COLOR_CYAN, COLOR_BLACK);
 	init_pair(8, COLOR_WHITE, COLOR_BLACK);
 
-	box(debugCont, ACS_VLINE, ACS_HLINE);
+	box(debugCont, 0, 0);
+	//box(debugWin, 0, 0);
+	//post_form(debugForm);
 	wrefresh(debugCont);
 	wrefresh(debugWin);
+	refresh();
+	//refresh();
 	tenhouNet.sendMsg("<Z />");
 	//say hi
 	tenhouNet.sendMsg("<HELO name=\"" + name + "\" tid=\"" + lobby + "\" sx=\"C\" />");
 	//join game queues
-	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",9\" />");
+	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",9\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",7\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
+	tenhouNet.sendMsg("<CHAT text=\"\%2Flobby\%204567\" />");
+	tenhouNet.sendMsg("<CHAT text=\"\%2Fwg\" />");
+	/*while((ch = wgetch(debugWin)) != KEY_F(1))
+	{
+		form_driver(debugForm, ch);
+	}*/
 
 	pthread_t mainLoop;
 	pthread_t pingLoop;
@@ -96,7 +128,7 @@ void *mainThread(void *tid)
 	while(!disconnected)
 	{
 		buffer = "";
-		//tenhouNet.sendMsg("<Z />");
+		tenhouNet.sendMsg("<Z />");
 		int status = tenhouNet.recieveMsg(buffer);
 		if(status == 0)
 		{
@@ -104,10 +136,14 @@ void *mainThread(void *tid)
 		}
 		else if(status > 0)
 		{
-			waddstr(debugWin, (buffer + "\n").c_str());
+			//waddstr(debugWin, (buffer + "\n").c_str());
 			wrefresh(debugWin);
 			if(buffer != "")
 			{
+				if(int(buffer.find("<CHAT")) == 0)
+				{
+					readChat(buffer);
+				}
 				//cout << buffer << endl;
 			}
 		}
@@ -119,9 +155,42 @@ void *pingThread(void *tid)
 	while(true)
 	{
 		tenhouNet.sendMsg("<Z />");
+		//tenhouNet.sendMsg("<CHAT text=\"\%2Fwg\" />");
 		//waddstr(debugWin, (buffer + "\n").c_str());
 		sleep(14);
 	}
+}
+
+void readChat(string recieved)
+{
+	string uname, text;
+	uname = getXMLAttr(recieved, "uname");
+	text = getXMLAttr(recieved, "text");
+	waddstr(debugWin, (ASCIIToStr(uname)+": "+ASCIIToStr(text)+"\n").c_str());
+	wrefresh(debugWin);
+}
+
+string getXMLAttr(string line, string attr)
+{
+	string match = attr+"=\"";
+	size_t start = line.find(match) + match.length();
+	size_t end = line.find("\"",start);
+	return line.substr(start, end-start);
+}
+
+string ASCIIToStr(string input)
+{
+	string result;
+	for(int i=0; i<(input.length()); i+=3)
+	{
+		string character;
+		int charvalue;
+		character += input.at(i+1);
+		character += input.at(i+2);
+		charvalue = fromString<int>(character, std::hex);
+		result += char(charvalue);
+	}
+	return result;
 }
 
 void renderTile(int y, int x, string tile)
@@ -277,13 +346,14 @@ string wideNum(int n)
 }
 
 //converts from a string to an arbitray numerical format
-template<class T> T fromString(const string& s)
+template<class T> T fromString(const string& s, ios_base& (*f)(ios_base&) = std::hex)
 {
 	istringstream stream(s);
 	T t;
-	stream >> t;
+	stream >> f >> t;
 	return t;
 }
+
 //converts to a string from an arbitrary numerical format
 template<class T> string toString(const T& t)
 {
