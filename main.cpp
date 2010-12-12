@@ -1,31 +1,26 @@
 #include <ncursesw/ncurses.h>
 #include <ncursesw/form.h>
 #include <iostream>
-#include <string>
-#include <sstream>
 #include <ctime>
 #include "network.h"
+#include "lobby.h"
+#include "stringUtils.h"
 
 using namespace std;
 
 void *mainThread(void *tid);
 void *pingThread(void *tid);
 void readChat(string recieved);
-string getXMLAttr(string line, string attr);
-string ASCIIToStr(string input);
+void readRooms(string recieved);
 string japaneseNum(int n);
 string wideNum(int n);
 void renderTile(int y, int x, string tile);
 //template<class T> T fromString(const string& s);
-template<class T> T fromString(const string& s, ios_base& (*f)(ios_base&) = std::hex);
-template<class T> string toString(const T& t);
-int charToInt(char a);
 
 static WINDOW *mainWin;
 static WINDOW *debugCont;
 static WINDOW *debugWin;
-FIELD *debugField[2];
-FORM *debugForm;
+lobby *mainLobby;
 
 network tenhouNet("112.78.204.226", "80");
 //network tenhouNet("localhost", "9001");
@@ -38,6 +33,7 @@ int main()
 	setlocale(LC_CTYPE, "");
 	mainWin = initscr();
 	cbreak();
+	curs_set(0);
 	noecho();
 	refresh();
 	debugCont = newwin(20, COLS, 0, 0);
@@ -80,12 +76,14 @@ int main()
 	tenhouNet.sendMsg("<HELO name=\"" + name + "\" tid=\"" + lobby + "\" sx=\"C\" />");
 	//join game queues
 	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",9\" />");
-	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",7\" />");
-	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
-	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
-	tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
+	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",7\" />");
+	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
+	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
+	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
 	tenhouNet.sendMsg("<CHAT text=\"\%2Flobby\%204567\" />");
 	tenhouNet.sendMsg("<CHAT text=\"\%2Fwg\" />");
+	tenhouNet.sendMsg("<CHAT text=\"%2Fchat\%20on\" />");
+	tenhouNet.sendMsg("<CHAT text=\"%2Fchat\%20off\" />");
 	/*while((ch = wgetch(debugWin)) != KEY_F(1))
 	{
 		form_driver(debugForm, ch);
@@ -123,6 +121,7 @@ int main()
 
 void *mainThread(void *tid)
 {
+	mainLobby = new lobby(mainWin);
 	string buffer;
 	bool disconnected = false;
 	while(!disconnected)
@@ -137,12 +136,19 @@ void *mainThread(void *tid)
 		else if(status > 0)
 		{
 			//waddstr(debugWin, (buffer + "\n").c_str());
-			wrefresh(debugWin);
+			//wrefresh(debugWin);
 			if(buffer != "")
 			{
 				if(int(buffer.find("<CHAT")) == 0)
 				{
-					readChat(buffer);
+					mainLobby->updateChat(buffer);
+					//readChat(buffer);
+				}
+				if(int(buffer.find("<LN")) == 0)
+				{
+					mainLobby->updateRooms(buffer);
+					refresh();
+					//readRooms(buffer);
 				}
 				//cout << buffer << endl;
 			}
@@ -161,44 +167,12 @@ void *pingThread(void *tid)
 	}
 }
 
-void readChat(string recieved)
-{
-	string uname, text;
-	uname = getXMLAttr(recieved, "uname");
-	text = getXMLAttr(recieved, "text");
-	waddstr(debugWin, (ASCIIToStr(uname)+": "+ASCIIToStr(text)+"\n").c_str());
-	wrefresh(debugWin);
-}
-
-string getXMLAttr(string line, string attr)
-{
-	string match = attr+"=\"";
-	size_t start = line.find(match) + match.length();
-	size_t end = line.find("\"",start);
-	return line.substr(start, end-start);
-}
-
-string ASCIIToStr(string input)
-{
-	string result;
-	for(int i=0; i<(input.length()); i+=3)
-	{
-		string character;
-		int charvalue;
-		character += input.at(i+1);
-		character += input.at(i+2);
-		charvalue = fromString<int>(character, std::hex);
-		result += char(charvalue);
-	}
-	return result;
-}
-
 void renderTile(int y, int x, string tile)
 {
 	if(tile.at(1) == 'm') //Man
 	{
 		attron(COLOR_PAIR(5)|A_BOLD);
-		mvaddstr(y, x, japaneseNum(charToInt(tile.at(0))).c_str());
+		mvaddstr(y, x, japaneseNum(stringUtils::charToInt(tile.at(0))).c_str());
 		attroff(COLOR_PAIR(5)|A_BOLD);
 		attron(COLOR_PAIR(2));
 		mvaddstr(y+1, x, "萬");
@@ -206,11 +180,11 @@ void renderTile(int y, int x, string tile)
 	}
 	else if(tile.at(1) == 's') //Sou
 	{
-		int num = charToInt(tile.at(0));
+		int num = stringUtils::charToInt(tile.at(0));
 		if(num == 2 || num == 3 || num == 4 || num == 6 || num == 8)
 		{
 			attron(COLOR_PAIR(7));
-			mvaddstr(y, x, wideNum(charToInt(tile.at(0))).c_str());
+			mvaddstr(y, x, wideNum(stringUtils::charToInt(tile.at(0))).c_str());
 			attroff(COLOR_PAIR(7));
 			attron(COLOR_PAIR(3));
 			mvaddstr(y+1, x, "║ ");
@@ -219,7 +193,7 @@ void renderTile(int y, int x, string tile)
 		else
 		{
 			attron(COLOR_PAIR(7));
-			mvaddstr(y, x, wideNum(charToInt(tile.at(0))).c_str());
+			mvaddstr(y, x, wideNum(stringUtils::charToInt(tile.at(0))).c_str());
 			//mvaddstr(y+1, x, "鳥");
 			mvaddstr(y+1, x, "║ ");
 			attroff(COLOR_PAIR(7));
@@ -228,7 +202,7 @@ void renderTile(int y, int x, string tile)
 	else if(tile.at(1) == 'p') //Pin
 	{
 		attron(COLOR_PAIR(6));
-		mvaddstr(y, x, wideNum(charToInt(tile.at(0))).c_str());
+		mvaddstr(y, x, wideNum(stringUtils::charToInt(tile.at(0))).c_str());
 		mvaddstr(y+1, x, "◎∙");
 		attroff(COLOR_PAIR(6));
 	}
@@ -343,26 +317,4 @@ string wideNum(int n)
 		default:
 			return "Error";
 	}
-}
-
-//converts from a string to an arbitray numerical format
-template<class T> T fromString(const string& s, ios_base& (*f)(ios_base&) = std::hex)
-{
-	istringstream stream(s);
-	T t;
-	stream >> f >> t;
-	return t;
-}
-
-//converts to a string from an arbitrary numerical format
-template<class T> string toString(const T& t)
-{
-	ostringstream stream;
-	stream << t;
-	return stream.str();
-}
-
-int charToInt(char a)
-{
-	return a - '0';
 }
