@@ -10,15 +10,12 @@ using namespace std;
 
 void *mainThread(void *tid);
 void *pingThread(void *tid);
-void readChat(string recieved);
-void readRooms(string recieved);
 string japaneseNum(int n);
 string wideNum(int n);
 void renderTile(int y, int x, string tile);
 //template<class T> T fromString(const string& s);
 
 static WINDOW *mainWin;
-static WINDOW *debugCont;
 static WINDOW *debugWin;
 lobby *mainLobby;
 
@@ -29,6 +26,7 @@ int main()
 {
 	char ch;
 	string name = "ID30EA6C7C-8YS42EDV";
+	//string lobby = "0000";
 	string lobby = "4567";
 	setlocale(LC_CTYPE, "");
 	mainWin = initscr();
@@ -36,8 +34,7 @@ int main()
 	curs_set(0);
 	noecho();
 	refresh();
-	debugCont = newwin(20, COLS, 0, 0);
-	debugWin = subwin(debugCont, 18, COLS-2, 1, 1);
+	debugWin = subwin(mainWin,20, 0, 0, 0);
 	//debugField[0] = new_field(1, 10, 6, 1, 0, 0);
 	//debugField[1] = NULL;
 	//set_field_back(debugField[0], A_UNDERLINE);
@@ -64,10 +61,9 @@ int main()
 	init_pair(7, COLOR_CYAN, COLOR_BLACK);
 	init_pair(8, COLOR_WHITE, COLOR_BLACK);
 
-	box(debugCont, 0, 0);
+	box(debugWin, 0, 0);
 	//box(debugWin, 0, 0);
 	//post_form(debugForm);
-	wrefresh(debugCont);
 	wrefresh(debugWin);
 	refresh();
 	//refresh();
@@ -80,7 +76,7 @@ int main()
 	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",3\" />");
 	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",1\" />");
 	//tenhouNet.sendMsg("<JOIN t=\"" + lobby + ",65\" />");
-	tenhouNet.sendMsg("<CHAT text=\"\%2Flobby\%204567\" />");
+	tenhouNet.sendMsg("<CHAT text=\"\%2Flobby\%20" + lobby + "\" />");
 	tenhouNet.sendMsg("<CHAT text=\"\%2Fwg\" />");
 	tenhouNet.sendMsg("<CHAT text=\"%2Fchat\%20on\" />");
 	tenhouNet.sendMsg("<CHAT text=\"%2Fchat\%20off\" />");
@@ -135,20 +131,18 @@ void *mainThread(void *tid)
 		}
 		else if(status > 0)
 		{
-			//waddstr(debugWin, (buffer + "\n").c_str());
-			//wrefresh(debugWin);
+			waddstr(debugWin, (buffer + "\n").c_str());
+			wrefresh(debugWin);
 			if(buffer != "")
 			{
 				if(int(buffer.find("<CHAT")) == 0)
 				{
 					mainLobby->updateChat(buffer);
-					//readChat(buffer);
 				}
 				if(int(buffer.find("<LN")) == 0)
 				{
 					mainLobby->updateRooms(buffer);
 					refresh();
-					//readRooms(buffer);
 				}
 				//cout << buffer << endl;
 			}

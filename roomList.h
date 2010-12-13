@@ -4,6 +4,7 @@
 #include <ncursesw/ncurses.h>
 #include <iostream>
 #include <string>
+#include "stringUtils.h"
 #include <vector>
 using std::vector;
 using std::string;
@@ -18,8 +19,10 @@ class roomList
 		roomList(WINDOW*);
 		int getWaiting(int type);
 		int getInGame(int type);
-		void updateWaiting(string waiting);
-		void updateInGame(string inGame);
+		void updateWaiting(string waitingString);
+		void updateInGame(string inGameString);
+		void setWaiting(string waitingString);
+		int gameType(int gameType);
 };
 
 #endif

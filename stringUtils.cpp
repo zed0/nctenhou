@@ -5,13 +5,20 @@ string stringUtils::getXMLAttr(string line, string attr)
 	string match = attr+"=\"";
 	size_t start = line.find(match) + match.length();
 	size_t end = line.find("\"",start);
-	return line.substr(start, end-start);
+	if(end != string::npos)
+	{
+		return line.substr(start, end-start);
+	}
+	else
+	{
+		return "";
+	}
 }
 
 string stringUtils::ASCIIToStr(string input)
 {
-	string result;
-	for(int i=0; i<(input.length()); i+=3)
+	string result = "";
+	for(int i=0; i<(input.length()-2); i+=3)
 	{
 		string character;
 		int charvalue;

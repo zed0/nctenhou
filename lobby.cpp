@@ -2,7 +2,7 @@
 
 lobby::lobby(WINDOW* parentWin)
 {
-	lobbyWin = derwin(parentWin, 30, 40, 10, 10);
+	lobbyWin = derwin(parentWin, 0, 0, 20, 0);
 	rooms = new roomList(lobbyWin);
 	chat = new chatBox(lobbyWin);
 	box(lobbyWin, 0, 0);
@@ -13,6 +13,7 @@ void lobby::updateChat(string chatString)
 {
 	string uname = stringUtils::getXMLAttr(chatString, "uname");
 	string text = stringUtils::getXMLAttr(chatString, "text");
+	if(uname != "" && text != "");
 	chat->update(uname, text);
 	wrefresh(lobbyWin);
 }
